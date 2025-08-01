@@ -1,0 +1,314 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("PRISMA_POOLING_URL")
+  directUrl = env("NON_PRISMA_POOLING_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  email        String   @unique
+  role         Role     @default(READER)
+  profileImage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  news         News[]
+  airdrops     Airdrop[]
+  nfts         NFT[]
+  defiProtocols DeFiProtocol[]
+  listings     Listing[]
+}
+
+// Enhanced News model for crypto news
+model News {
+  id          String   @id @default(cuid())
+  title       String   @unique
+  excerpt     String
+  content     String
+  image       String?
+  imageSource String?
+  category    String   // Breaking News, Market Analysis, Regulation, etc.
+  authorId    String   @map("author_id")
+  slug        String?  @unique
+  location    String?
+  publishedAt DateTime @map("published_at")
+  timeAgo     String   @map("time_ago")
+  tags        String[]
+  
+  // Crypto-specific flags
+  isBreaking  Boolean  @default(false) @map("is_breaking")
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  isTrending  Boolean  @default(false) @map("is_trending")
+  
+  // Metadata
+  readTime    Int      @default(5) @map("read_time")
+  views       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  User        User     @relation(fields: [authorId], references: [id])
+  
+  @@index([publishedAt(sort: Desc)])
+  @@index([category])
+  @@index([isFeatured])
+  @@index([isTrending])
+  @@index([isBreaking])
+  @@index([views(sort: Desc)])
+  @@index([authorId])
+  @@map("news")
+}
+
+// New model for Airdrops
+model Airdrop {
+  id           String    @id @default(cuid())
+  name         String    @unique
+  description  String
+  image        String?
+  category     String    // Token Airdrop, NFT Airdrop, Testnet Rewards, etc.
+  authorId     String    @map("author_id")
+  slug         String?   @unique
+  
+  // Airdrop-specific fields
+  website      String?
+  twitter      String?
+  discord      String?
+  requirements String?
+  endDate      DateTime? @map("end_date")
+  totalValue   String?   @map("total_value")
+  
+  // Flags
+  isActive     Boolean   @default(true) @map("is_active")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  isFeatured   Boolean   @default(false) @map("is_featured")
+  
+  // Metadata
+  views        Int       @default(0)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  User         User      @relation(fields: [authorId], references: [id])
+  
+  @@index([category])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([endDate])
+  @@index([createdAt(sort: Desc)])
+  @@map("airdrops")
+}
+
+// New model for NFT Collections
+model NFT {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String
+  image       String?
+  category    String    // Art, Gaming, Utility, PFP, etc.
+  authorId    String    @map("author_id")
+  slug        String?   @unique
+  
+  // NFT-specific fields
+  website     String?
+  twitter     String?
+  discord     String?
+  mintPrice   String?   @map("mint_price")
+  totalSupply String?   @map("total_supply")
+  mintDate    DateTime? @map("mint_date")
+  
+  // Flags
+  isLive      Boolean   @default(false) @map("is_live")
+  isFeatured  Boolean   @default(false) @map("is_featured")
+  isVerified  Boolean   @default(false) @map("is_verified")
+  
+  // Metadata
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  User        User      @relation(fields: [authorId], references: [id])
+  
+  @@index([category])
+  @@index([isLive])
+  @@index([isFeatured])
+  @@index([mintDate])
+  @@index([createdAt(sort: Desc)])
+  @@map("nfts")
+}
+
+// New model for DeFi Protocols
+model DeFiProtocol {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  image       String?
+  category    String   // DEX, Lending, Yield Farming, etc.
+  authorId    String   @map("author_id")
+  slug        String?  @unique
+  
+  // DeFi-specific fields
+  website     String?
+  twitter     String?
+  discord     String?
+  tvl         String?  // Total Value Locked
+  apy         String?  // Annual Percentage Yield
+  blockchain  String?
+  
+  // Flags
+  isActive    Boolean  @default(true) @map("is_active")
+  isVerified  Boolean  @default(false) @map("is_verified")
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  
+  // Metadata
+  views       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  User        User     @relation(fields: [authorId], references: [id])
+  
+  @@index([category])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([blockchain])
+  @@index([createdAt(sort: Desc)])
+  @@map("defi_protocols")
+}
+
+// New model for Token Listings
+model Listing {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String
+  image       String?
+  category    String    // CEX Listing, DEX Listing, New Token, etc.
+  authorId    String    @map("author_id")
+  slug        String?   @unique
+  
+  // Listing-specific fields
+  website     String?
+  twitter     String?
+  exchange    String?
+  price       String?
+  marketCap   String?   @map("market_cap")
+  listingDate DateTime? @map("listing_date")
+  
+  // Flags
+  isNew       Boolean   @default(true) @map("is_new")
+  isFeatured  Boolean   @default(false) @map("is_featured")
+  isVerified  Boolean   @default(false) @map("is_verified")
+  
+  // Metadata
+  views       Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  User        User      @relation(fields: [authorId], references: [id])
+  
+  @@index([category])
+  @@index([isNew])
+  @@index([isFeatured])
+  @@index([exchange])
+  @@index([listingDate])
+  @@index([createdAt(sort: Desc)])
+  @@map("listings")
+}
+
+// Keep existing models that are still relevant
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  firstName      String    @map("first_name")
+  lastName       String    @map("last_name")
+  email          String    @unique
+  preferences    String[]  // Can include crypto-specific preferences
+  isActive       Boolean   @default(true) @map("is_active")
+  subscribedAt   DateTime  @default(now()) @map("subscribed_at")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  
+  @@index([email])
+  @@index([isActive])
+  @@index([subscribedAt(sort: Desc)])
+  @@map("newsletter_subscribers")
+}
+
+model ContactSubmission {
+  id          String          @id @default(cuid())
+  firstName   String          @map("first_name")
+  lastName    String          @map("last_name")
+  email       String
+  subject     String
+  message     String
+  status      ContactStatus   @default(PENDING)
+  priority    ContactPriority @default(NORMAL)
+  assignedTo  String?         @map("assigned_to")
+  respondedAt DateTime?       @map("responded_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt(sort: Desc)])
+  @@index([email])
+  @@map("contact_submissions")
+}
+
+model EmailCampaign {
+  id             String         @id @default(cuid())
+  name           String
+  subject        String
+  content        String
+  htmlContent    String?        @map("html_content")
+  status         CampaignStatus @default(DRAFT)
+  scheduledAt    DateTime?      @map("scheduled_at")
+  sentAt         DateTime?      @map("sent_at")
+  recipientCount Int            @default(0) @map("recipient_count")
+  openCount      Int            @default(0) @map("open_count")
+  clickCount     Int            @default(0) @map("click_count")
+  createdBy      String         @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdAt(sort: Desc)])
+  @@map("email_campaigns")
+}
+
+enum Role {
+  ADMIN
+  AUTHOR
+  READER
+}
+
+enum ContactStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ContactPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}

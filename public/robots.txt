@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://health-watch-sooty.vercel.app
+
+# Sitemaps
+Sitemap: https://health-watch-sooty.vercel.app/sitemap.xml

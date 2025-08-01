@@ -1,71 +1,76 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import { PrismaClient } from "@prisma/client"
+import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { PrismaClient } from "@prisma/client";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!, // You'll need to add this env var
-)
+export const runtime = "nodejs"; // ensure this runs in Node, not Edge
 
-const prisma = new PrismaClient()
+let prisma: PrismaClient;
+function getPrismaClient() {
+  if (!prisma) {
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get("file") as File
-    const userId = formData.get("userId") as string
+    // validate env
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing Supabase env vars:", { supabaseUrl, serviceRoleKey });
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const userId = formData.get("userId") as string | null;
 
     if (!file || !userId) {
-      return NextResponse.json({ error: "File and userId are required" }, { status: 400 })
+      return NextResponse.json({ error: "File and userId are required" }, { status: 400 });
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 })
+      return NextResponse.json({ error: "Only image files are allowed" }, { status: 400 });
     }
 
-    // Validate file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "File size must be less than 5MB" }, { status: 400 })
+      return NextResponse.json({ error: "File size must be less than 5MB" }, { status: 400 });
     }
 
-    // Create unique filename for profile images
-    const fileExt = file.name.split(".").pop()
-    const fileName = `profiles/profile-${userId}-${Date.now()}.${fileExt}`
+    const fileExt = file.name.split(".").pop();
+    const fileName = `profiles/profile-${userId}-${Date.now()}.${fileExt}`;
 
-    // Convert File to ArrayBuffer for Supabase
-    const arrayBuffer = await file.arrayBuffer()
-    const fileBuffer = new Uint8Array(arrayBuffer)
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = new Uint8Array(arrayBuffer);
 
-    // Upload to Supabase Storage using your existing bucket
-    const { data, error } = await supabase.storage.from("news-images").upload(fileName, fileBuffer, {
-      contentType: file.type,
-      upsert: true, // Replace if file already exists
-    })
+    const { error: uploadError } = await supabase.storage
+      .from("news-images")
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: true,
+      });
 
-    if (error) {
-      console.error("Supabase upload error:", error)
-      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 })
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+      return NextResponse.json({ error: "Failed to upload image" }, { status: 500 });
     }
 
-    // Get public URL
     const {
       data: { publicUrl },
-    } = supabase.storage.from("news-images").getPublicUrl(fileName)
+    } = supabase.storage.from("news-images").getPublicUrl(fileName);
 
-    // Update user profile image in database
-    await prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        profileImage: publicUrl,
-      },
-    })
+    const prismaClient = getPrismaClient();
+    await prismaClient.user.update({
+      where: { id: userId },
+      data: { profileImage: publicUrl },
+    });
 
-    return NextResponse.json({ imageUrl: publicUrl })
-  } catch (error) {
-    console.error("Error uploading profile image:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ imageUrl: publicUrl });
+  } catch (err) {
+    console.error("Error uploading profile image:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

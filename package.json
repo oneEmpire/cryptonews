@@ -8,10 +8,7 @@
     "start": "next start",
     "lint": "next lint"
   },
-  "overrides": {
-  "date-fns": "3.6.0"
-}
-,
+
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
